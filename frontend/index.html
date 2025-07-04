@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard DWDM - Monitoreo Minería</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .admin-info {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        .admin-info h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .admin-info p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h4 {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .section h4::before {
+            content: "🔔";
+            margin-right: 10px;
+        }
+
+        .alerts {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .status-card.safe {
+            background: #27ae60;
+            color: white;
+        }
+
+        .status-card.warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .status-card.critical {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .status-card .number {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .status-card .label {
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .stations-panel {
+            background: white;
+            border-top: 1px solid #ddd;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .stations-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stations-header h3 {
+            margin-right: 20px;
+            color: #2c3e50;
+        }
+
+        .search-box {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .search-box button {
+            padding: 10px 15px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            margin-left: -1px;
+        }
+
+        .stations-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .stations-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #e9ecef;
+            font-size: 12px;
+        }
+
+        .stations-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 12px;
+        }
+
+        .stations-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.safe {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+
+        .legend-color.safe { background: #27ae60; }
+        .legend-color.warning { background: #f39c12; }
+        .legend-color.critical { background: #e74c3c; }
+        .legend-color.region { background: #8e44ad; }
+
+        .popup-content {
+            font-size: 12px;
+            min-width: 200px;
+        }
+
+        .popup-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .popup-metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .popup-metric .label {
+            font-weight: 600;
+        }
+
+        .popup-status {
+            text-align: center;
+            padding: 6px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Nuevos estilos para el panel de predicción */
+        .prediction-container {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .prediction-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            color: white;
+        }
+
+        .prediction-input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .predict-btn {
+            width: 100%;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .prediction-result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+
+        /* Estilos para conexiones */
+        .region-connection {
+            stroke-dasharray: 10, 5;
+            stroke-linecap: round;
+            stroke-width: 3px;
+            opacity: 0.9;
+            animation: dash 60s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 1000;
+            }
+        }
+
+        .leaflet-overlay-pane svg path {
+            paint-order: stroke;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="admin-info">
+            <h3>Administrador</h3>
+            <h2 id="admin-name">Juan Pérez</h2>
+            <p>Ingeniero de Redes DWDM</p>
+            <p>Último acceso: <span id="last-access"></span></p>
+        </div>
+
+        <div class="section">
+            <h4>Alarmas Recientes</h4>
+            <div class="alerts" id="recent-alerts">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+
+        <div class="section">
+            <h4>Resumen de Estado</h4>
+            <div class="status-grid">
+                <div class="status-card safe">
+                    <span class="number" id="safe-count">0</span>
+                    <span class="label">Seguro</span>
+                </div>
+                <div class="status-card warning">
+                    <span class="number" id="warning-count">0</span>
+                    <span class="label">Advertencia</span>
+                </div>
+                <div class="status-card critical">
+                    <span class="number" id="critical-count">0</span>
+                    <span class="label">Crítico</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h4>Predicción Manual</h4>
+            <div class="prediction-container">
+                <input type="number" id="predict-power" class="prediction-input" placeholder="Potencia (dBm)" value="-18.5" step="0.1">
+                <input type="number" id="predict-ber" class="prediction-input" placeholder="BER" value="1e-12" step="1e-13">
+                <input type="number" id="predict-osnr" class="prediction-input" placeholder="OSNR (dB)" value="30.0" step="0.1">
+                <input type="number" id="predict-temp" class="prediction-input" placeholder="Temperatura (°C)" value="65.0" step="0.1">
+                <input type="number" id="predict-age" class="prediction-input" placeholder="Edad Cable (años)" value="5" min="0">
+                <button class="predict-btn" onclick="predictStatus()">Predecir Estado</button>
+                <div id="prediction-result" class="prediction-result"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color safe"></div>
+                    <span>Cable Seguro</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color warning"></div>
+                    <span>Cable Advertencia</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color critical"></div>
+                    <span>Cable Crítico</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color region"></div>
+                    <span>Conexión entre Regiones</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stations-panel">
+            <div class="stations-header">
+                <h3>🏗️ Listado de Estaciones y Cables</h3>
+                <div class="search-box">
+                    <input type="text" placeholder="Buscar estación o cable..." id="search-input">
+                    <button onclick="searchCables()">🔍</button>
+                </div>
+            </div>
+
+            <table class="stations-table">
+                <thead>
+                    <tr>
+                        <th>ID Cable</th>
+                        <th>Estación</th>
+                        <th>Edad (años)</th>
+                        <th>Potencia (dBm)</th>
+                        <th>Temperatura (°C)</th>
+                        <th>OSNR (dB)</th>
+                        <th>BER</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="stations-tbody">
+                    <!-- Datos se cargarán dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <script>
+        // Configuración API
+        const API_URL = "http://localhost:8000";
+        
+        // Variables globales
+        let cableData = [];
+        let map;
+        let mapMarkers = [];
+        let mapLines = [];
+        let regionalHubs = [];
+
+        // Función para inicializar el mapa
+        function initMap() {
+            map = L.map('map').setView([-33.4489, -70.6693], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Función para obtener color según estado
+        function getStatusColor(status) {
+            switch(status) {
+                case 'safe': return '#27ae60';
+                case 'warning': return '#f39c12';
+                case 'critical': return '#e74c3c';
+                default: return '#95a5a6';
+            }
+        }
+
+        // Función para formatear BER
+        function formatBER(ber) {
+            return Number(ber).toExponential(2);
+        }
+
+        // Función para cargar datos desde la API
+        async function fetchCableData() {
+            try {
+                const response = await fetch(`${API_URL}/api/cables`);
+                if (!response.ok) throw new Error("Error en la respuesta");
+                
+                cableData = await response.json();
+                
+                // Identificar hubs regionales (primer cable de cada región)
+                identifyRegionalHubs();
+                
+                // Actualizar el dashboard
+                updateDashboard();
+                
+            } catch (error) {
+                console.error("Error al obtener datos:", error);
+                cableData = getSampleData();
+                identifyRegionalHubs();
+                updateDashboard();
+                showAlert("⚠️ Usando datos de ejemplo - API no disponible");
+            }
+        }
+
+        // Identifica hubs regionales basados en las regiones
+        function identifyRegionalHubs() {
+            const regions = {};
+            cableData.forEach(cable => {
+                if (!regions[cable.region]) {
+                    regions[cable.region] = cable;
+                    cable.isHub = true; // Marcar como hub regional
+                } else {
+                    cable.isHub = false;
+                }
+            });
+            regionalHubs = Object.values(regions);
+        }
+
+        // Función para actualizar todo el dashboard
+        function updateDashboard() {
+            updateMap();
+            populateStationsTable();
+            updateStatusCounts();
+            updateRecentAlerts();
+        }
+
+        // Función para actualizar el mapa
+        function updateMap() {
+            // Limpiar marcadores anteriores
+            mapMarkers.forEach(marker => map.removeLayer(marker));
+            mapLines.forEach(line => map.removeLayer(line));
+            mapMarkers = [];
+            mapLines = [];
+
+            // Agregar nuevos marcadores
+            cableData.forEach((cable, index) => {
+                const color = getStatusColor(cable.status);
+                
+                // Marcador (más grande para hubs)
+                const marker = L.circleMarker(cable.coordinates, {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.8,
+                    radius: cable.isHub ? 10 : 6
+                }).bindPopup(createPopupContent(cable));
+                
+                marker.addTo(map);
+                mapMarkers.push(marker);
+
+                // Dibujar conexiones
+                drawConnections(cable, index);
+            });
+        }
+
+        // Dibuja conexiones
+        function drawConnections(cable, index) {
+            // Conexiones solo para hubs
+            if (cable.isHub) {
+                // 1. Conexión con otros hubs de regiones conectadas
+                if (cable.connections) {
+                    cable.connections.forEach(connectedRegion => {
+                        const hubForConnectedRegion = regionalHubs.find(hub => hub.region === connectedRegion);
+                        if (hubForConnectedRegion) {
+                            const line = L.polyline([
+                                cable.coordinates,
+                                hubForConnectedRegion.coordinates
+                            ], {
+                                color: '#8e44ad', // Morado para conexiones entre regiones
+                                weight: 3,
+                                opacity: 0.9,
+                                className: 'region-connection'
+                            }).addTo(map);
+                            mapLines.push(line);
+                        }
+                    });
+                }
+                
+                // 2. Conexión con todas las estaciones de su misma región (con color según estado)
+                const sameRegionCables = cableData.filter(c => 
+                    c.region === cable.region && 
+                    c.id !== cable.id
+                );
+                
+                sameRegionCables.forEach(target => {
+                    const lineColor = getStatusColor(target.status); // Color según estado del cable destino
+                    const line = L.polyline([
+                        cable.coordinates,
+                        target.coordinates
+                    ], {
+                        color: lineColor,
+                        weight: 2,
+                        opacity: 0.8
+                    }).addTo(map);
+                    mapLines.push(line);
+                });
+            }
+        }
+
+        // Función para crear contenido de popup
+        function createPopupContent(cable) {
+            return `
+                <div class="popup-content">
+                    <div class="popup-title">${cable.id} - ${cable.station} ${cable.isHub ? ' (Hub Regional)' : ''}</div>
+                    <div class="popup-metric">
+                        <span class="label">Región:</span>
+                        <span>${cable.region || 'N/A'}</span>
+                    </div>
+                    <div class="popup-metric">
+                        <span class="label">Potencia:</span>
+                        <span>${cable.power} dBm</span>
+                    </div>
+                    <div class="popup-metric">
+                        <span class="label">Temperatura:</span>
+                        <span>${cable.temperature}°C</span>
+                    </div>
+                    <div class="popup-metric">
+                        <span class="label">OSNR:</span>
+                        <span>${cable.osnr} dB</span>
+                    </div>
+                    <div class="popup-metric">
+                        <span class="label">BER:</span>
+                        <span>${formatBER(cable.ber)}</span>
+                    </div>
+                    <div class="popup-status" style="background: ${getStatusColor(cable.status)}">
+                        ${cable.status.toUpperCase()}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Función para llenar la tabla de estaciones
+        function populateStationsTable() {
+            const tbody = document.getElementById('stations-tbody');
+            tbody.innerHTML = '';
+
+            cableData.forEach(cable => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${cable.id}</td>
+                    <td>${cable.station} ${cable.isHub ? '★' : ''}</td>
+                    <td>${cable.age}</td>
+                    <td>${cable.power}</td>
+                    <td>${cable.temperature}</td>
+                    <td>${cable.osnr}</td>
+                    <td>${formatBER(cable.ber)}</td>
+                    <td><span class="status-badge ${cable.status}">${cable.status}</span></td>
+                    <td><button class="btn" onclick="viewDetails('${cable.id}')">Detalles</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Función para ver detalles de un cable
+        function viewDetails(cableId) {
+            const cable = cableData.find(c => c.id === cableId);
+            if (cable) {
+                map.setView(cable.coordinates, 8);
+                const marker = mapMarkers.find(m => {
+                    const latLng = m.getLatLng();
+                    return latLng.lat === cable.coordinates[0] && latLng.lng === cable.coordinates[1];
+                });
+                if (marker) marker.openPopup();
+            }
+        }
+
+        // Función para buscar cables
+        function searchCables() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const tbody = document.getElementById('stations-tbody');
+            const rows = tbody.getElementsByTagName('tr');
+
+            Array.from(rows).forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        }
+
+        // Función para actualizar contadores de estado
+        function updateStatusCounts() {
+            const counts = cableData.reduce((acc, cable) => {
+                acc[cable.status] = (acc[cable.status] || 0) + 1;
+                return acc;
+            }, {});
+
+            document.getElementById('safe-count').textContent = counts.safe || 0;
+            document.getElementById('warning-count').textContent = counts.warning || 0;
+            document.getElementById('critical-count').textContent = counts.critical || 0;
+        }
+
+        // Función para actualizar alarmas recientes
+        function updateRecentAlerts() {
+            const alertsContainer = document.getElementById('recent-alerts');
+            const criticalCables = cableData
+                .filter(c => c.status === 'critical')
+                .slice(0, 3);
+
+            if (criticalCables.length === 0) {
+                alertsContainer.innerHTML = '<div class="text-center py-2">No hay alarmas críticas</div>';
+                return;
+            }
+
+            alertsContainer.innerHTML = criticalCables.map(cable => `
+                <div class="alert-item">
+                    <strong>🔴 ${cable.id}</strong> - ${cable.station}<br>
+                    <small>Región: ${cable.region || 'N/A'} | Potencia: ${cable.power} dBm</small>
+                </div>
+            `).join('');
+        }
+
+        // Función para mostrar alertas
+        function showAlert(message) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-warning';
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        // Función para predecir estado
+        async function predictStatus() {
+            const power = document.getElementById('predict-power').value;
+            const ber = document.getElementById('predict-ber').value;
+            const osnr = document.getElementById('predict-osnr').value;
+            const temp = document.getElementById('predict-temp').value;
+            const age = document.getElementById('predict-age').value;
+
+            try {
+                const response = await fetch(`${API_URL}/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        potencia_dbm: parseFloat(power),
+                        ber: parseFloat(ber),
+                        osnr: parseFloat(osnr),
+                        temperatura: parseFloat(temp),
+                        edad_cable: parseInt(age)
+                    })
+                });
+
+                if (!response.ok) throw new Error("Error en la predicción");
+
+                const result = await response.json();
+                showPredictionResult(result);
+
+            } catch (error) {
+                console.error("Error al predecir:", error);
+                showAlert("Error al conectar con la API de predicción");
+            }
+        }
+
+        // Función para mostrar resultado de predicción
+        function showPredictionResult(result) {
+            const resultDiv = document.getElementById('prediction-result');
+            resultDiv.style.display = 'block';
+            
+            let color, icon;
+            switch(result.prediction) {
+                case 'critical':
+                    color = '#e74c3c';
+                    icon = '🔴';
+                    break;
+                case 'warning':
+                    color = '#f39c12';
+                    icon = '⚠️';
+                    break;
+                default:
+                    color = '#27ae60';
+                    icon = '✅';
+            }
+
+            resultDiv.innerHTML = `
+                <div style="color: ${color};">
+                    ${icon} <strong>${result.prediction.toUpperCase()}</strong><br>
+                    Confianza: ${(result.confidence * 100).toFixed(1)}%
+                </div>
+            `;
+        }
+
+        // Función para mostrar hora actual
+        function updateLastAccess() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-CL', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            document.getElementById('last-access').textContent = `Hoy, ${timeString}`;
+        }
+
+        // Datos de ejemplo (para cuando la API no esté disponible)
+        function getSampleData() {
+            return [
+                {
+                    id: 'FBR-00001',
+                    station: 'Estación Central',
+                    coordinates: [-33.4489, -70.6693],
+                    region: "Santiago",
+                    connections: ["Valparaíso", "Antofagasta"],
+                    age: 5,
+                    power: -16.49,
+                    temperature: 42.3,
+                    osnr: 31.5,
+                    ber: 1.00e-13,
+                    status: 'safe',
+                    isHub: true
+                },
+                {
+                    id: 'FBR-00002',
+                    station: 'Nodo Antofagasta',
+                    coordinates: [-23.650, -70.400],
+                    region: "Antofagasta",
+                    connections: ["Atacama", "Tarapacá"],
+                    age: 8,
+                    power: -21.70,
+                    temperature: 70.8,
+                    osnr: 29.0,
+                    ber: 1.00e-10,
+                    status: 'warning',
+                    isHub: true
+                },
+                {
+                    id: 'FBR-00003',
+                    station: 'Nodo Atacama',
+                    coordinates: [-27.366, -70.332],
+                    region: "Atacama",
+                    connections: ["Antofagasta", "Coquimbo"],
+                    age: 12,
+                    power: -35.01,
+                    temperature: 82.4,
+                    osnr: 20.8,
+                    ber: 1.00e-7,
+                    status: 'critical',
+                    isHub: true
+                },
+                {
+                    id: 'FBR-00004',
+                    station: 'Nodo Copiapó',
+                    coordinates: [-27.366, -70.332],
+                    region: "Atacama",
+                    connections: [],
+                    age: 4,
+                    power: -18.5,
+                    temperature: 65.2,
+                    osnr: 28.3,
+                    ber: 1.00e-11,
+                    status: 'safe',
+                    isHub: false
+                },
+                {
+                    id: 'FBR-00005',
+                    station: 'Nodo Iquique',
+                    coordinates: [-20.217, -70.133],
+                    region: "Tarapacá",
+                    connections: ["Antofagasta"],
+                    age: 6,
+                    power: -22.3,
+                    temperature: 68.7,
+                    osnr: 26.5,
+                    ber: 1.00e-9,
+                    status: 'warning',
+                    isHub: true
+                },
+                {
+                    id: 'FBR-00006',
+                    station: 'Nodo Valparaíso',
+                    coordinates: [-33.045, -71.620],
+                    region: "Valparaíso",
+                    connections: ["Coquimbo"],
+                    age: 3,
+                    power: -15.8,
+                    temperature: 45.1,
+                    osnr: 32.0,
+                    ber: 1.00e-12,
+                    status: 'safe',
+                    isHub: true
+                },
+                {
+                    id: 'FBR-00007',
+                    station: 'Nodo Viña del Mar',
+                    coordinates: [-33.0245, -71.5518],
+                    region: "Valparaíso",
+                    connections: [],
+                    age: 2,
+                    power: -17.2,
+                    temperature: 48.3,
+                    osnr: 30.5,
+                    ber: 1.00e-12,
+                    status: 'safe',
+                    isHub: false
+                },
+                {
+                    id: 'FBR-00008',
+                    station: 'Nodo Calama',
+                    coordinates: [-22.4544, -68.9294],
+                    region: "Antofagasta",
+                    connections: [],
+                    age: 7,
+                    power: -20.1,
+                    temperature: 72.5,
+                    osnr: 27.8,
+                    ber: 1.00e-10,
+                    status: 'warning',
+                    isHub: false
+                }
+            ];
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            fetchCableData();
+            updateLastAccess();
+            
+            // Actualizar cada 30 segundos
+            setInterval(fetchCableData, 30000);
+            setInterval(updateLastAccess, 60000);
+            
+            // Búsqueda en tiempo real
+            document.getElementById('search-input').addEventListener('input', searchCables);
+        });
+    </script>
+</body>
+</html>
